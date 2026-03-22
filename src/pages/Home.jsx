@@ -245,36 +245,9 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* 4. PROMO BANNER (Purple Gradient -> Blue/Yellow Gradient) */}
-          <div className="card border-0 mb-4 overflow-hidden shadow-sm"
-            style={{
-              borderRadius: '20px',
-              background: 'linear-gradient(135deg, #233E58 0%, #4A6F9E 100%)',
-              color: 'white',
-              position: 'relative'
-            }}>
-            {/* Fixed Overlay Decor (Yellow) */}
-            <div className="position-absolute rounded-circle bg-warning opacity-25" style={{ width: 150, height: 150, top: -75, right: -75, zIndex: 0 }}></div>
+          {/* REPORTE FINANCIERO — pendiente de definición, temporalmente oculto */}
+          {/* <div className="card border-0 mb-4 overflow-hidden shadow-sm" ... > ... </div> */}
 
-            <div className="card-body p-3 d-flex justify-content-between align-items-center position-relative" style={{ zIndex: 1 }}>
-              {/* Content */}
-              <div style={{ maxWidth: '70%' }}>
-                <h6 className="fw-bold mb-1">Tu reporte financiero</h6>
-                <p className="mb-2 small opacity-75" style={{ fontSize: '0.75rem', lineHeight: '1.2' }}>
-                  Explora tus movimientos y analiza tus gastos mensuales.
-                </p>
-                <button className="btn btn-sm bg-white text-dark fw-bold rounded-pill px-3 shadow-sm border-0"
-                  style={{ fontSize: '0.7rem' }}>
-                  <span className="text-warning me-1">Ver más</span> <i className="bi bi-arrow-right text-dark"></i>
-                </button>
-              </div>
-
-              {/* Decor (Coins) */}
-              <div className="position-absolute" style={{ right: 15, top: 15 }}>
-                <i className="bi bi-pie-chart-fill text-warning" style={{ fontSize: '3.5rem', opacity: 0.9 }}></i>
-              </div>
-            </div>
-          </div>
 
           {/* 5. TRANSACTION LIST */}
           <div>

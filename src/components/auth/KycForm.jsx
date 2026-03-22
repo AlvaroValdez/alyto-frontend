@@ -30,7 +30,49 @@ const KycForm = ({ onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'documentNumber') {
+      setFormData(prev => ({ ...prev, documentNumber: formatDocumentNumber(value, prev.documentType) }));
+    } else if (name === 'documentType') {
+      // Al cambiar tipo, limpiar número para evitar formatos erróneos
+      setFormData(prev => ({ ...prev, documentType: value, documentNumber: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  /**
+   * Formatea el número de documento según el tipo seleccionado:
+   *   RUT        → 12.345.678-9
+   *   DNI        → solo dígitos (Bolivia: 7-8 dígitos)
+   *   CE         → solo dígitos (hasta 9)
+   *   PASSPORT   → alfanumérico mayúsculas
+   */
+  const formatDocumentNumber = (raw, docType) => {
+    if (docType === 'RUT') {
+      // Limpiar todo excepto dígitos y 'k'/'K'
+      const cleaned = raw.replace(/[^0-9kK]/g, '').toLowerCase();
+      if (cleaned.length === 0) return '';
+      const body = cleaned.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      const dv   = cleaned.slice(-1).toUpperCase();
+      return `${body}-${dv}`;
+    }
+    if (docType === 'DNI') {
+      return raw.replace(/\D/g, '').slice(0, 8);
+    }
+    if (docType === 'CE') {
+      return raw.replace(/\D/g, '').slice(0, 12);
+    }
+    if (docType === 'PASSPORT') {
+      return raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12);
+    }
+    return raw;
+  };
+
+  const docPlaceholder = {
+    RUT:      '12.345.678-9',
+    DNI:      'Ej: 1234567',
+    CE:       'Número de cédula extranjería',
+    PASSPORT: 'Ej: AB1234567',
   };
 
   const handleStep1Submit = async (e) => {
@@ -142,7 +184,8 @@ const KycForm = ({ onSuccess }) => {
               <Form.Group className="mb-3">
                 <Form.Label>Número de Documento</Form.Label>
                 <Form.Control type="text" name="documentNumber" value={formData.documentNumber}
-                  onChange={handleChange} required />
+                  onChange={handleChange} required
+                  placeholder={docPlaceholder[formData.documentType] || 'Número de documento'} />
               </Form.Group>
             </Col>
           </Row>
