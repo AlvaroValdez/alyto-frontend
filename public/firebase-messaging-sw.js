@@ -1,6 +1,10 @@
 // public/firebase-messaging-sw.js
 // Service Worker para recibir push notifications en background
 
+// Activar inmediatamente sin esperar que se cierren pestañas abiertas
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(clients.claim()));
+
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 

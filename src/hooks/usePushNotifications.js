@@ -8,21 +8,23 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 
 const VAPID_KEY = import.meta.env.VITE_FCM_VAPID_KEY;
+const LS_KEY = 'fcmToken';
 
 /**
  * Hook que:
  * 1. Pide permiso de notificaciones al usuario
- * 2. Obtiene el FCM token del dispositivo
- * 3. Lo registra en el backend
- * 4. Escucha mensajes cuando la app está en FOREGROUND
- * 5. Escucha notificaciones de background via BroadcastChannel
+ * 2. Registra el service worker y espera a que esté activo
+ * 3. Obtiene el FCM token del dispositivo
+ * 4. Lo registra en el backend (solo si cambió o no estaba guardado)
+ * 5. Escucha mensajes cuando la app está en FOREGROUND
+ * 6. Escucha notificaciones de background via BroadcastChannel
  */
 export const usePushNotifications = () => {
     const registered = useRef(false);
     const { addNotification } = useNotifications();
     const { token: authToken } = useAuth();
 
-    // Escuchar notificaciones recibidas en background (via service worker)
+    // Escuchar notificaciones recibidas en background (via service worker → BroadcastChannel)
     useEffect(() => {
         if (!authToken) return;
         if (!('BroadcastChannel' in window)) return;
@@ -59,7 +61,12 @@ export const usePushNotifications = () => {
                     return;
                 }
 
-                const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                // Registrar (o actualizar) el SW
+                await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+                // Esperar a que el SW esté ACTIVO y controlando la página
+                // (skipWaiting en el SW garantiza que la espera sea breve)
+                const registration = await navigator.serviceWorker.ready;
 
                 const messaging = await getFirebaseMessaging();
                 if (!messaging) {
@@ -69,7 +76,7 @@ export const usePushNotifications = () => {
 
                 const token = await getToken(messaging, {
                     vapidKey: VAPID_KEY,
-                    serviceWorkerRegistration: registration
+                    serviceWorkerRegistration: registration,
                 });
 
                 if (!token) {
@@ -77,16 +84,23 @@ export const usePushNotifications = () => {
                     return;
                 }
 
-                const response = await registerFcmToken(token);
-                if (response?.ok) {
-                    localStorage.setItem('fcmToken', token);
-                    registered.current = true;
-                    console.log('[Push] ✅ Token FCM registrado');
+                // Registrar en backend solo si el token cambió
+                const cachedToken = localStorage.getItem(LS_KEY);
+                if (token !== cachedToken) {
+                    const response = await registerFcmToken(token);
+                    if (response?.ok) {
+                        localStorage.setItem(LS_KEY, token);
+                        console.log('[Push] ✅ Token FCM actualizado en backend');
+                    } else {
+                        console.warn('[Push] Backend no pudo guardar el FCM token');
+                    }
                 } else {
-                    console.warn('[Push] Backend no pudo guardar el FCM token');
+                    console.log('[Push] ✅ Token FCM ya registrado (sin cambios)');
                 }
 
-                // Escuchar mensajes en FOREGROUND (solo registrar el listener una vez)
+                registered.current = true;
+
+                // Escuchar mensajes en FOREGROUND (una sola vez por sesión)
                 if (!window._fcmListenerRegistered) {
                     onMessage(messaging, (payload) => {
                         const { title, body } = payload.notification || {};
@@ -118,7 +132,7 @@ export const usePushNotifications = () => {
 export const clearPushToken = async () => {
     try {
         await deleteFcmToken();
-        localStorage.removeItem('fcmToken');
+        localStorage.removeItem(LS_KEY);
         window._fcmListenerRegistered = false;
         console.log('[Push] Token FCM eliminado');
     } catch (err) {
