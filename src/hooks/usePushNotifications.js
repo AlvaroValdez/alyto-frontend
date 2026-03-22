@@ -15,125 +15,101 @@ const VAPID_KEY = import.meta.env.VITE_FCM_VAPID_KEY;
  * 2. Obtiene el FCM token del dispositivo
  * 3. Lo registra en el backend
  * 4. Escucha mensajes cuando la app está en FOREGROUND
+ * 5. Escucha notificaciones de background via BroadcastChannel
  */
 export const usePushNotifications = () => {
     const registered = useRef(false);
     const { addNotification } = useNotifications();
-    const { token: authToken } = useAuth(); // Dependencia clave
+    const { token: authToken } = useAuth();
 
+    // Escuchar notificaciones recibidas en background (via service worker)
     useEffect(() => {
-        // Solo proceder si hay un usuario logueado
         if (!authToken) return;
+        if (!('BroadcastChannel' in window)) return;
 
-        // Evitar registrar múltiples veces en la misma sesión activa
+        const channel = new BroadcastChannel('fcm-background');
+        channel.onmessage = (event) => {
+            const { title, body, data } = event.data || {};
+            addNotification({ title, body, type: data?.type, link: data?.link });
+        };
+
+        return () => channel.close();
+    }, [authToken, addNotification]);
+
+    // Registrar FCM token y escuchar mensajes en foreground
+    useEffect(() => {
+        if (!authToken) return;
         if (registered.current) return;
 
         const setup = async () => {
             try {
-                // 1. Verificar soporte del navegador
                 if (!('Notification' in window)) {
-                    toast.error('[Debug Push] Navegador no soporta notificaciones');
+                    console.warn('[Push] Navegador no soporta notificaciones');
                     return;
                 }
 
-                // 2. Pedir permiso
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') {
-                    toast.error('[Debug Push] Permiso de notificaciones DENEGADO por el usuario/navegador');
+                    console.warn('[Push] Permiso de notificaciones denegado');
                     return;
                 }
 
-                // 3. Registrar Service Worker
                 if (!('serviceWorker' in navigator)) {
-                    toast.error('[Debug Push] Navegador no soporta serviceWorker');
+                    console.warn('[Push] Navegador no soporta Service Worker');
                     return;
                 }
 
                 const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-                console.log('[Push] Service Worker registrado');
 
-                // 4. Obtener mensajería
                 const messaging = await getFirebaseMessaging();
                 if (!messaging) {
-                    toast.error('[Debug Push] Firebase Messaging no soportado (messaging = null)');
+                    console.warn('[Push] Firebase Messaging no disponible');
                     return;
                 }
 
-                // 5. Obtener token FCM
                 const token = await getToken(messaging, {
                     vapidKey: VAPID_KEY,
                     serviceWorkerRegistration: registration
                 });
 
                 if (!token) {
-                    toast.error('[Debug Push] No se pudo obtener el FCM token de los servidores de Google');
+                    console.warn('[Push] No se pudo obtener el FCM token');
                     return;
                 }
 
-                // 6. Guardar token en el localStorage para comparar
-                const prevToken = localStorage.getItem('fcmToken');
-                if (token !== prevToken) {
-                    // 7. Registrar en backend
-                    const response = await registerFcmToken(token);
-                    if (response?.ok) {
-                        localStorage.setItem('fcmToken', token);
-                        console.log('[Push] ✅ Token FCM registrado en backend');
-                        registered.current = true; // Solo marcamos como registrado si tuvo éxito
-                        toast.success('[Debug Push] ✅ Token FCM guardado en tu Base de Datos Backend con éxito!');
-                    } else {
-                        toast.error('[Debug Push] ❌ Backend falló al intentar guardar tu Token FCM');
-                    }
+                const response = await registerFcmToken(token);
+                if (response?.ok) {
+                    localStorage.setItem('fcmToken', token);
+                    registered.current = true;
+                    console.log('[Push] ✅ Token FCM registrado');
                 } else {
-                    // Si el token es el mismo del localStorage, igual intentamos registrarlo
-                    // por si la sesión anterior cerró mal o el backend lo borró
-                    const response = await registerFcmToken(token);
-                    if (response?.ok) {
-                        console.log('[Push] ✅ Token FCM re-registrado en backend');
-                        registered.current = true;
-                        toast.success('[Debug Push] ✅ Token FCM RE-guardado en tu BD Backend con éxito!');
-                    } else {
-                        toast.error('[Debug Push] ❌ Backend falló al intentar re-guardar tu Token FCM');
-                    }
+                    console.warn('[Push] Backend no pudo guardar el FCM token');
                 }
 
-                // 8. Escuchar mensajes en FOREGROUND (Solo registrar el listener una vez)
+                // Escuchar mensajes en FOREGROUND (solo registrar el listener una vez)
                 if (!window._fcmListenerRegistered) {
                     onMessage(messaging, (payload) => {
-                        console.log('[Push] Mensaje en foreground:', payload);
                         const { title, body } = payload.notification || {};
                         const data = payload.data || {};
 
-                        // Agregar al Contexto (Campana)
                         addNotification({ title, body, type: data.type, link: data.link });
 
-                        // Mostrar popup (Toaster in-app)
                         toast(title || 'Notificación', {
                             description: body,
                             icon: '🔔',
                             duration: 5000,
                         });
-
-                        // Mostrar notificación nativa opcionalmente
-                        if (Notification.permission === 'granted') {
-                            new Notification(title || 'Alyto', {
-                                body,
-                                icon: '/logo192.png',
-                                tag: data.type || 'default'
-                            });
-                        }
                     });
                     window._fcmListenerRegistered = true;
                 }
 
             } catch (err) {
-                // No loguear errores críticos — push es no-crítico
                 console.warn('[Push] Error en setup:', err.message);
-                toast.error(`[Debug Push] Excepción Fatal en Setup: ${err.message}`);
             }
         };
 
         setup();
-    }, [authToken]); // Ejecutar cuando el token de sesión cambie (ej: Login)
+    }, [authToken]); // eslint-disable-line react-hooks/exhaustive-deps
 };
 
 /**
@@ -143,9 +119,8 @@ export const clearPushToken = async () => {
     try {
         await deleteFcmToken();
         localStorage.removeItem('fcmToken');
-        console.log('[Push] Token FCM eliminado');
-        // Reset local variables para el próximo login
         window._fcmListenerRegistered = false;
+        console.log('[Push] Token FCM eliminado');
     } catch (err) {
         console.warn('[Push] Error eliminando token:', err.message);
     }

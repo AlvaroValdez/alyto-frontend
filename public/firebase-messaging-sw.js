@@ -30,6 +30,15 @@ messaging.onBackgroundMessage((payload) => {
         renotify: true,
         data: { url: data.url || '/' }
     });
+
+    // Avisar a la app (si está abierta) para actualizar la campana de notificaciones
+    try {
+        const channel = new BroadcastChannel('fcm-background');
+        channel.postMessage({ title, body, data });
+        channel.close();
+    } catch (e) {
+        // BroadcastChannel puede no estar disponible en todos los contextos
+    }
 });
 
 // Click en notificación → abrir la URL correspondiente
