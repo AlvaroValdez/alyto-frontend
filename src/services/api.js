@@ -110,6 +110,17 @@ export const resetPassword = async (token, password) => {
 };
 
 // --- PERFIL Y KYC ---
+export const uploadAvatar = async (formData) => {
+  try {
+    const response = await apiClient.post('/auth/avatar', formData, {
+      headers: { 'Content-Type': undefined }
+    });
+    return response.data;
+  } catch (error) {
+    throw normalizeAxiosError(error, 'Error subiendo foto de perfil.');
+  }
+};
+
 export const updateUserProfile = async (profileData) => {
   try {
     const response = await apiClient.put('/auth/profile', profileData);

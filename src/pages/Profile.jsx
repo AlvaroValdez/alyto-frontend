@@ -1,12 +1,22 @@
-import React from 'react';
-import { Container, Row, Col, Card, ListGroup, Badge, Button } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Container, Row, Col, Badge, Button, Modal, Form, Spinner } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
+import { uploadAvatar, updateUserProfile } from '../services/api';
+import { toast } from 'sonner';
 import KycLevel2Form from '../components/auth/KycLevel2Form';
 import KybLevel2Form from '../components/auth/KybLevel2Form';
-import logo from '../assets/images/logo.png';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateUserSession } = useAuth();
+
+  const [uploading, setUploading] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    phoneNumber: user?.phoneNumber || '',
+    address: user?.address || '',
+  });
 
   const getKycStatusBadge = (status) => {
     switch (status) {
@@ -14,6 +24,65 @@ const Profile = () => {
       case 'pending': return <Badge bg="warning" text="dark">En Revisión</Badge>;
       case 'rejected': return <Badge bg="danger">Rechazado</Badge>;
       default: return <Badge bg="secondary">No Verificado</Badge>;
+    }
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5MB');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    setUploading(true);
+    const toastId = toast.loading('Subiendo foto de perfil...');
+    try {
+      const response = await uploadAvatar(formData);
+      if (response.ok && response.avatar) {
+        updateUserSession({ ...user, avatar: response.avatar });
+        toast.success('Foto de perfil actualizada', { id: toastId });
+      } else {
+        throw new Error('No se recibió la URL del avatar');
+      }
+    } catch (err) {
+      toast.error('Error al subir la imagen', { id: toastId });
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    setFormData({
+      name: user?.name || '',
+      phoneNumber: user?.phoneNumber || '',
+      address: user?.address || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const response = await updateUserProfile({
+        firstName: formData.name.split(' ')[0],
+        lastName: formData.name.split(' ').slice(1).join(' '),
+        phoneNumber: formData.phoneNumber,
+        address: formData.address,
+      });
+      if (response.ok && response.user) {
+        updateUserSession({ ...user, ...response.user });
+        toast.success('Perfil actualizado correctamente');
+        setShowEditModal(false);
+      } else {
+        throw new Error(response.error || 'Error al actualizar');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error al guardar los cambios');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -38,6 +107,7 @@ const Profile = () => {
             </div>
           </div>
 
+          {/* Avatar con estado de carga */}
           <div style={{ flexShrink: 0 }}>
             <div
               className="rounded-circle overflow-hidden shadow-sm"
@@ -47,16 +117,20 @@ const Profile = () => {
                 backgroundImage: user?.avatar ? `url(${user.avatar})` : 'none',
                 backgroundSize: 'cover', backgroundPosition: 'center',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '3px solid #F7C843'
+                border: '3px solid #F7C843',
+                opacity: uploading ? 0.6 : 1,
               }}
             >
-              {!user?.avatar && <span className="fw-bold" style={{ fontSize: '32px', color: '#6c757d' }}>{user?.name?.charAt(0).toUpperCase() || 'U'}</span>}
+              {uploading
+                ? <Spinner animation="border" variant="primary" />
+                : (!user?.avatar && <span className="fw-bold" style={{ fontSize: '32px', color: '#6c757d' }}>{user?.name?.charAt(0).toUpperCase() || 'U'}</span>)
+              }
             </div>
           </div>
 
         </div>
 
-        {/* --- 2. FOLLOWERS / FOLLOWING EQUIVALENT (KYC Status) --- */}
+        {/* --- 2. KYC Status --- */}
         <div className="d-flex mb-4">
           <div className="me-5">
             <div className="text-uppercase text-secondary mb-1" style={{ fontSize: '0.75rem', letterSpacing: '1px' }}>Nivel KYC</div>
@@ -78,17 +152,36 @@ const Profile = () => {
 
         {/* --- 3. ACTIONS ROW --- */}
         <div className="d-flex gap-3 mb-5">
-          <Button variant="outline-primary" className="rounded-pill px-4 fw-normal" style={{ fontSize: '0.9rem' }} disabled>
-            Editar Foto
-          </Button>
-          <Button variant="outline-primary" className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '38px', height: '38px' }}>
-            <i className="bi bi-person-plus"></i>
+          {/* Editar Foto — label wraps hidden input */}
+          <label
+            htmlFor="profile-photo-input"
+            className="btn btn-outline-primary rounded-pill px-4 fw-normal mb-0"
+            style={{ fontSize: '0.9rem', cursor: uploading ? 'not-allowed' : 'pointer', pointerEvents: uploading ? 'none' : 'auto' }}
+          >
+            {uploading ? <><Spinner size="sm" className="me-1" />Subiendo...</> : 'Editar Foto'}
+          </label>
+          <input
+            id="profile-photo-input"
+            type="file"
+            className="d-none"
+            accept="image/*"
+            onChange={handleAvatarChange}
+          />
+
+          {/* Editar Perfil */}
+          <Button
+            variant="outline-primary"
+            className="rounded-pill px-4 fw-normal"
+            style={{ fontSize: '0.9rem' }}
+            onClick={handleOpenEditModal}
+          >
+            <i className="bi bi-pencil me-1"></i>Editar Perfil
           </Button>
         </div>
 
         <hr style={{ borderColor: '#dee2e6' }} className="mb-4" />
 
-        {/* --- 4. PRACTICE STATS EQUIVALENT (Limits & Info) --- */}
+        {/* --- 4. Limits & Info --- */}
         <div className="mb-4">
           <div className="text-uppercase text-secondary mb-3" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>Límites Transaccionales</div>
 
@@ -112,7 +205,7 @@ const Profile = () => {
 
         <hr style={{ borderColor: '#dee2e6' }} className="mb-4" />
 
-        {/* --- 5. MY CLASSES EQUIVALENT (Detailed Info & Verification) --- */}
+        {/* --- 5. Datos de Seguridad --- */}
         <div className="mb-4">
           <div className="text-uppercase text-secondary mb-3" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>Datos de Seguridad</div>
 
@@ -151,10 +244,9 @@ const Profile = () => {
               </div>
             </>
           )}
-
         </div>
 
-        {/* Formulario de Aumento de Nivel embebido al final */}
+        {/* --- 6. KYC Upgrade Form --- */}
         {(!user?.kyc?.status || user?.kyc?.status !== 'approved') && (
           <div className="mt-5 p-4 rounded bg-white shadow-sm border border-light">
             <h5 className="text-dark mb-3 fw-bold">Sube de Nivel KYC</h5>
@@ -166,6 +258,61 @@ const Profile = () => {
         )}
 
       </Container>
+
+      {/* --- MODAL: Editar Perfil --- */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="fw-bold text-dark" style={{ fontSize: '1.1rem' }}>
+            Editar Perfil
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="px-4 pb-4">
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-secondary small fw-medium">Nombre completo</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
+                className="rounded-3"
+                style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}
+                placeholder="Tu nombre completo"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-secondary small fw-medium">Teléfono</Form.Label>
+              <Form.Control
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData(f => ({ ...f, phoneNumber: e.target.value }))}
+                className="rounded-3"
+                style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}
+                placeholder="+56 9 1234 5678"
+              />
+            </Form.Group>
+            <Form.Group className="mb-4">
+              <Form.Label className="text-secondary small fw-medium">Dirección</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.address}
+                onChange={(e) => setFormData(f => ({ ...f, address: e.target.value }))}
+                className="rounded-3"
+                style={{ background: '#f8f9fa', border: '1px solid #dee2e6' }}
+                placeholder="Tu dirección"
+              />
+            </Form.Group>
+            <Button
+              variant="primary"
+              className="w-100 rounded-pill fw-bold py-2"
+              onClick={handleSaveProfile}
+              disabled={saving}
+            >
+              {saving ? <><Spinner size="sm" className="me-2" />Guardando...</> : 'Guardar Cambios'}
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
     </div>
   );
 };

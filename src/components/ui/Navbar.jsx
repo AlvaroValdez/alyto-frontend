@@ -1,16 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Navbar, Container, Nav, Button } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import { uploadAvatar } from '../../services/api';
+import { toast } from 'sonner';
 
 import logo from '../../assets/images/logo.png';
 import logoWhite from '../../assets/images/logo-white.png';
 
 const AppNavbar = () => {
-  const { token, user, logout } = useAuth();
+  const { token, user, logout, updateUserSession } = useAuth();
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5MB');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const toastId = toast.loading('Subiendo foto...');
+    try {
+      const response = await uploadAvatar(formData);
+      if (response.ok && response.avatar) {
+        updateUserSession({ ...user, avatar: response.avatar });
+        toast.success('Foto de perfil actualizada', { id: toastId });
+      } else {
+        throw new Error('No se recibió la URL del avatar');
+      }
+    } catch (err) {
+      toast.error('Error al subir la imagen', { id: toastId });
+    }
+    // Limpiar input para permitir re-selección del mismo archivo
+    e.target.value = '';
+  };
 
   const handleLogout = () => {
     setExpanded(false);
@@ -93,18 +121,37 @@ const AppNavbar = () => {
                     <i className="bi bi-pencil-fill me-1"></i>Editar perfil
                   </div>
                 </div>
-                {/* Avatar: foto o inicial */}
-                <div
-                  className="rounded-circle overflow-hidden d-flex align-items-center justify-content-center border border-2 border-white mb-3 shadow flex-shrink-0"
-                  style={{ width: 52, height: 52, backgroundColor: user?.avatar ? 'transparent' : '#F7C843' }}
-                >
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span className="fw-bold text-dark" style={{ fontSize: '1.4rem' }}>
-                      {user?.name?.charAt(0) || 'U'}
-                    </span>
-                  )}
+
+                {/* Avatar con botón de cámara */}
+                <div className="position-relative flex-shrink-0 mb-3" style={{ width: 52, height: 52 }}>
+                  <div
+                    className="rounded-circle overflow-hidden d-flex align-items-center justify-content-center border border-2 border-white shadow w-100 h-100"
+                    style={{ backgroundColor: user?.avatar ? 'transparent' : '#F7C843' }}
+                  >
+                    {user?.avatar ? (
+                      <img src={user.avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span className="fw-bold text-dark" style={{ fontSize: '1.4rem' }}>
+                        {user?.name?.charAt(0) || 'U'}
+                      </span>
+                    )}
+                  </div>
+                  {/* Botón cámara — badge inferior derecho */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    className="position-absolute border-0 rounded-circle d-flex align-items-center justify-content-center shadow"
+                    style={{ width: 22, height: 22, bottom: 0, right: 0, background: '#F7C843', cursor: 'pointer', padding: 0 }}
+                    title="Cambiar foto"
+                  >
+                    <i className="bi bi-camera-fill" style={{ fontSize: '0.6rem', color: '#1a1a1a' }}></i>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="d-none"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                  />
                 </div>
               </div>
 

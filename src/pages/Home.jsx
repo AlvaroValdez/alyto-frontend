@@ -10,6 +10,7 @@ import homeBackgroundImage from '../assets/home-background.jpg';
 import logo from '../assets/images/logo-white.png';
 import logoOriginal from '../assets/images/logo.png';
 import NotificationBell from '../components/ui/NotificationBell';
+import { uploadAvatar } from '../services/api';
 
 import { toast } from 'sonner';
 
@@ -130,7 +131,6 @@ const Home = () => {
                     formData.append('avatar', file);
                     const toastId = toast.loading("Subiendo foto de perfil...");
                     try {
-                      const { uploadAvatar } = await import('../services/api');
                       const response = await uploadAvatar(formData);
                       if (response.ok && response.avatar) {
                         const updatedUser = { ...user, avatar: response.avatar };
