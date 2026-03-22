@@ -69,13 +69,45 @@ const getFlagUrl = (code) => {
   return FLAGS[code.toUpperCase()] || '';
 };
 
-// Country to Currency mapping
+// Country to Currency mapping (código de país → código de moneda)
 const COUNTRY_TO_CURRENCY = {
   CL: 'CLP', CO: 'COP', AR: 'ARS', MX: 'MXN',
   BR: 'BRL', PE: 'PEN', BO: 'BOB', US: 'USD', VE: 'VES',
   CR: 'CRC', DO: 'DOP', EC: 'USD', ES: 'EUR', EU: 'EUR',
   GB: 'GBP', GT: 'GTQ', HT: 'HTG', PA: 'PAB', PL: 'PLN',
   PY: 'PYG', SV: 'USD', UY: 'UYU', AU: 'AUD', CN: 'CNY'
+};
+
+// Nombres completos de moneda en español (nunca depender del backend para los labels)
+const CURRENCY_NAMES = {
+  CLP: 'Peso Chileno',
+  COP: 'Peso Colombiano',
+  ARS: 'Peso Argentino',
+  MXN: 'Peso Mexicano',
+  BRL: 'Real Brasileño',
+  PEN: 'Sol Peruano',
+  BOB: 'Boliviano',
+  USD: 'Dólar Estadounidense',
+  VES: 'Bolívar Venezolano',
+  CRC: 'Colón Costarricense',
+  DOP: 'Peso Dominicano',
+  EUR: 'Euro',
+  GBP: 'Libra Esterlina',
+  GTQ: 'Quetzal Guatemalteco',
+  HTG: 'Gourde Haitiano',
+  PAB: 'Balboa Panameño',
+  PLN: 'Esloti Polaco',
+  PYG: 'Guaraní Paraguayo',
+  UYU: 'Peso Uruguayo',
+  AUD: 'Dólar Australiano',
+  CNY: 'Yuan Chino',
+};
+
+// Devuelve { code, name } para un país dado — nunca muestra garbage del API
+const getCurrencyInfo = (countryCode) => {
+  const code = COUNTRY_TO_CURRENCY[countryCode] || countryCode;
+  const name = CURRENCY_NAMES[code] || code;
+  return { code, name };
 };
 
 const CardForm = ({ onQuoteSuccess }) => {
@@ -323,7 +355,10 @@ const CardForm = ({ onQuoteSuccess }) => {
                     style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
                   />
                 )}
-                <span className="fw-bold fs-5">{originCurrency}</span>
+                <div className="d-flex flex-column lh-1">
+                  <span className="fw-bold fs-5">{originCurrency}</span>
+                  <small className="text-muted" style={{ fontSize: '0.65rem' }}>{CURRENCY_NAMES[originCurrency] || originCurrency}</small>
+                </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
@@ -367,7 +402,7 @@ const CardForm = ({ onQuoteSuccess }) => {
             <div className="d-flex align-items-center justify-content-between">
               <div
                 className="d-flex align-items-center gap-2"
-                style={{ minWidth: '110px', cursor: 'pointer' }}
+                style={{ minWidth: '130px', cursor: 'pointer' }}
                 onClick={() => setShowDestModal(true)}
               >
                 {getFlagUrl(destCountry) && (
@@ -377,9 +412,10 @@ const CardForm = ({ onQuoteSuccess }) => {
                     style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
                   />
                 )}
-                <span className="fw-bold fs-5">
-                  {COUNTRY_TO_CURRENCY[destCountry] || destCountry}
-                </span>
+                <div className="d-flex flex-column lh-1">
+                  <span className="fw-bold fs-5">{getCurrencyInfo(destCountry).code}</span>
+                  <small className="text-muted" style={{ fontSize: '0.65rem' }}>{getCurrencyInfo(destCountry).name}</small>
+                </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
@@ -512,7 +548,7 @@ const CardForm = ({ onQuoteSuccess }) => {
                     )}
                     <div>
                       <div className="fw-bold">{c.name}</div>
-                      <small className="text-muted">{c.currency}</small>
+                      <small className="text-muted">{c.currency} · {CURRENCY_NAMES[c.currency] || c.currency}</small>
                     </div>
                   </ListGroup.Item>
                 ))
@@ -551,8 +587,10 @@ const CardForm = ({ onQuoteSuccess }) => {
                       />
                     )}
                     <div>
-                      <div className="fw-bold">{c.name}</div>
-                      <small className="text-muted">{COUNTRY_TO_CURRENCY[c.code] || c.code}</small>
+                      <div className="fw-bold">{BANK_EXAMPLES[c.code]?.countryName || c.name}</div>
+                      <small className="text-muted">
+                        {getCurrencyInfo(c.code).code} · {getCurrencyInfo(c.code).name}
+                      </small>
                     </div>
                   </ListGroup.Item>
                 ))
