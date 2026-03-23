@@ -36,6 +36,14 @@ const FLAGS = {
 
 const getFlagUrl = (code) => FLAGS[code?.toUpperCase()] || '';
 
+const COUNTRY_TO_CURRENCY = {
+    CL: 'CLP', CO: 'COP', AR: 'ARS', MX: 'MXN', BR: 'BRL', PE: 'PEN',
+    BO: 'BOB', VE: 'VES', EC: 'USD', PA: 'USD', GT: 'GTQ', SV: 'USD',
+    DO: 'DOP', CR: 'CRC', PY: 'PYG', UY: 'UYU', US: 'USD', EU: 'EUR',
+    GB: 'GBP', PL: 'PLN', AU: 'AUD', CN: 'CNY', HT: 'HTG'
+};
+const toCurrencyCode = (code) => COUNTRY_TO_CURRENCY[code?.toUpperCase()] || code || '';
+
 const maskAccountNumber = (accountNumber) => {
     if (!accountNumber) return 'N/A';
     const str = String(accountNumber);
@@ -133,7 +141,7 @@ const ReceiptContent = ({ transaction, orderId }) => {
                                     />
                                 )}
                                 <span className="fw-bold fs-5 text-dark" translate="no">
-                                    {transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country}
+                                    {toCurrencyCode(transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country)}
                                 </span>
                             </div>
                             <span className="fw-bold" style={{ fontSize: '2rem', color: '#28a745' }}>
@@ -148,7 +156,7 @@ const ReceiptContent = ({ transaction, orderId }) => {
             {/* Exchange Rate - With Fallback Logic */}
             {(() => {
                 const effectiveRate = getEffectiveRate(transaction);
-                const destCurrency = transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency;
+                const destCurrency = toCurrencyCode(transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country);
 
                 return effectiveRate && destCurrency ? (
                     <div className="mb-3 pb-3 border-bottom">

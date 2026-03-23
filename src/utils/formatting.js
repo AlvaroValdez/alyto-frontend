@@ -14,6 +14,7 @@ export const parseFormattedNumber = (formattedString) => {
 };
 
 export const formatRate = (rate) => {
-  if (isNaN(rate) || rate === null) return '0';
-  return rate.toFixed(4);
+  if (isNaN(rate) || rate === null || rate === undefined) return '0';
+  // Use 2 decimals for large rates (≥1), 4 for fractional rates
+  return rate >= 1 ? rate.toFixed(2) : rate.toFixed(4);
 };

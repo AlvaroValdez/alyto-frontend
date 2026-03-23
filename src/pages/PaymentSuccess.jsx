@@ -130,6 +130,15 @@ const PaymentSuccess = () => {
     }
   }, [transaction]);
 
+  // Convierte código de mercado/país a ISO de moneda ("CL" → "CLP", "CO" → "COP", etc.)
+  const COUNTRY_TO_CURRENCY = {
+    CL: 'CLP', CO: 'COP', AR: 'ARS', MX: 'MXN', BR: 'BRL', PE: 'PEN',
+    BO: 'BOB', VE: 'VES', EC: 'USD', PA: 'USD', GT: 'GTQ', SV: 'USD',
+    DO: 'DOP', CR: 'CRC', PY: 'PYG', UY: 'UYU', US: 'USD', EU: 'EUR',
+    GB: 'GBP', PL: 'PLN', AU: 'AUD', CN: 'CNY', HT: 'HTG'
+  };
+  const toCurrencyCode = (code) => COUNTRY_TO_CURRENCY[code?.toUpperCase()] || code || '';
+
   const getStatusBadge = (status) => {
     const statusMap = {
       pending: { variant: 'warning', text: 'Pendiente', icon: '⏳' },
@@ -196,7 +205,7 @@ const PaymentSuccess = () => {
     const originTotal = at.originTotal ?? transaction.amount ?? 0;
     const originCurrency = at.originCurrency || transaction.currency || '';
     const destReceive = at.destReceiveAmount ?? rt.destAmount ?? 0;
-    const destCurrency = at.destCurrency || rt.destCurrency || transaction.country || '';
+    const destCurrency = toCurrencyCode(at.destCurrency || rt.destCurrency || transaction.country || '');
     const rate = rt.alytoRate
       ? `1 ${originCurrency} = ${rt.alytoRate} ${destCurrency}`
       : null;
@@ -406,7 +415,7 @@ const PaymentSuccess = () => {
                             />
                           )}
                           <span className="fw-bold fs-5 text-dark" translate="no">
-                            {transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country}
+                            {toCurrencyCode(transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country)}
                           </span>
                         </div>
                         <span className="fw-bold" style={{ fontSize: '2rem', color: '#28a745' }}>
@@ -421,7 +430,7 @@ const PaymentSuccess = () => {
                 {/* Exchange Rate - With Fallback Logic */}
                 {(() => {
                   const effectiveRate = getEffectiveRate();
-                  const destCurrency = transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency;
+                  const destCurrency = toCurrencyCode(transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country);
 
                   return effectiveRate && destCurrency ? (
                     <div className="mb-3 pb-3 border-bottom">

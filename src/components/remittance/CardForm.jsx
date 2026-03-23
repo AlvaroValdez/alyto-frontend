@@ -382,7 +382,7 @@ const CardForm = ({ onQuoteSuccess }) => {
                 style={{ backgroundColor: '#F7C843', maxWidth: '100%', width: 'fit-content' }}>
                 <span className="me-2 fw-bold text-dark text-nowrap">Tasa:</span>
                 <span className="fw-bold text-dark text-nowrap">
-                  {formatRate(1 / quote.rateWithMarkup)} {quote.origin} = 1 {quote.destCurrency}
+                  <span translate="no">1 {quote.origin} = {formatRate(quote.rateWithMarkup)} {quote.destCurrency}</span>
                 </span>
                 <i className="bi bi-arrow-down-up ms-2 text-dark"></i>
               </div>
