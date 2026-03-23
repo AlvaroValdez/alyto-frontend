@@ -413,8 +413,8 @@ const CardForm = ({ onQuoteSuccess }) => {
                   />
                 )}
                 <div className="d-flex flex-column lh-1">
-                  <span className="fw-bold fs-5">{getCurrencyInfo(destCountry).code}</span>
-                  <small className="text-muted" style={{ fontSize: '0.65rem' }}>{getCurrencyInfo(destCountry).name}</small>
+                  <span className="fw-bold fs-5" translate="no">{getCurrencyInfo(destCountry).code}</span>
+                  <small className="text-muted" style={{ fontSize: '0.65rem' }} translate="no">{getCurrencyInfo(destCountry).name}</small>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="6 9 12 15 18 9"></polyline>
@@ -547,8 +547,8 @@ const CardForm = ({ onQuoteSuccess }) => {
                       />
                     )}
                     <div>
-                      <div className="fw-bold">{c.name}</div>
-                      <small className="text-muted">{c.currency} · {CURRENCY_NAMES[c.currency] || c.currency}</small>
+                      <div className="fw-bold" translate="no">{c.name}</div>
+                      <small className="text-muted" translate="no">{c.currency} · {CURRENCY_NAMES[c.currency] || c.currency}</small>
                     </div>
                   </ListGroup.Item>
                 ))
@@ -587,8 +587,8 @@ const CardForm = ({ onQuoteSuccess }) => {
                       />
                     )}
                     <div>
-                      <div className="fw-bold">{BANK_EXAMPLES[c.code]?.countryName || c.name}</div>
-                      <small className="text-muted">
+                      <div className="fw-bold" translate="no">{BANK_EXAMPLES[c.code]?.countryName || c.name}</div>
+                      <small className="text-muted" translate="no">
                         {getCurrencyInfo(c.code).code} · {getCurrencyInfo(c.code).name}
                       </small>
                     </div>

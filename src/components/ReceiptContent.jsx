@@ -59,26 +59,23 @@ const getStatusBadge = (status) => {
     );
 };
 
-// ✅ FIX: Calcular tasa efectiva con fallbacks - PRIORIDAD CÁLCULO
+// Tasa efectiva: lo que el usuario vio en el cotizador (alytoRate tiene prioridad)
 const getEffectiveRate = (transaction) => {
     if (!transaction) return null;
 
-    // Prioridad 1: Calcular desde montos reales (Lo que ve el usuario en Quote)
-    // ✅ FIX: Usar transaction.amount (BRUTO que el usuario ve en "Tú envías")
-    // NO usar originPrincipal (neto después de comisiones) para evitar inconsistencia
-    const destAmount = transaction.rateTracking?.destAmount || transaction.amountsTracking?.destReceiveAmount;
-    const originAmount = transaction.amount; // Bruto: $10.000
-
-    if (destAmount && originAmount && originAmount > 0) {
-        return destAmount / originAmount; // 37.158 / 10.000 = 3.7158
-    }
-
-    // Prioridad 2: Usar tasa Alyto almacenada
+    // Prioridad 1: alytoRate guardada (es exactamente la que vio en el cotizador)
     if (transaction.rateTracking?.alytoRate) {
         return transaction.rateTracking.alytoRate;
     }
 
-    // Prioridad 3: Usar tasa Vita como último recurso
+    // Prioridad 2: Calcular desde montos reales (fallback cuando no hay rateTracking)
+    const destAmount = transaction.rateTracking?.destAmount || transaction.amountsTracking?.destReceiveAmount;
+    const originAmount = transaction.amount;
+    if (destAmount && originAmount && originAmount > 0) {
+        return destAmount / originAmount;
+    }
+
+    // Prioridad 3: vitaRate como último recurso
     if (transaction.rateTracking?.vitaRate) {
         return transaction.rateTracking.vitaRate;
     }
@@ -113,7 +110,7 @@ const ReceiptContent = ({ transaction, orderId }) => {
                                 style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                             />
                         )}
-                        <span className="fw-bold fs-5 text-dark">{transaction.currency}</span>
+                        <span className="fw-bold fs-5 text-dark" translate="no">{transaction.currency}</span>
                     </div>
                     <span className="fw-bold" style={{ fontSize: '1.5rem', color: '#233E58' }}>
                         ${formatNumberForDisplay(transaction.amount)}
@@ -135,7 +132,7 @@ const ReceiptContent = ({ transaction, orderId }) => {
                                         style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                                     />
                                 )}
-                                <span className="fw-bold fs-5 text-dark">
+                                <span className="fw-bold fs-5 text-dark" translate="no">
                                     {transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country}
                                 </span>
                             </div>
@@ -157,7 +154,7 @@ const ReceiptContent = ({ transaction, orderId }) => {
                     <div className="mb-3 pb-3 border-bottom">
                         <small className="text-muted d-block mb-2">Tasa de cambio</small>
                         <div className="d-flex align-items-center gap-2">
-                            <span className="badge bg-light text-dark border px-3 py-2">
+                            <span className="badge bg-light text-dark border px-3 py-2" translate="no">
                                 <i className="bi bi-arrow-left-right me-2"></i>
                                 <span className="fw-bold">
                                     1 {transaction.currency} = {formatRate(effectiveRate)} {destCurrency}

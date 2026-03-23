@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const TIMEOUT_MS = Number(import.meta.env.VITE_SESSION_TIMEOUT_MS) || 3 * 60 * 1000; // 30 minutos
-const WARNING_MS = Number(import.meta.env.VITE_SESSION_WARNING_MS) || 1 * 60 * 1000; // 2 minutos warning
+const TIMEOUT_MS = Number(import.meta.env.VITE_SESSION_TIMEOUT_MS) || 30 * 60 * 1000; // 30 minutos
+const WARNING_MS = Number(import.meta.env.VITE_SESSION_WARNING_MS) || 2 * 60 * 1000; // 2 minutos warning
 
 /**
  * Hook personalizado para detectar inactividad y mostrar advertencia antes de cerrar sesión.
@@ -97,6 +97,14 @@ export const useInactivityTimeout = () => {
             document.addEventListener(event, resetTimer, true);
         });
 
+        // Resetear timer cuando el usuario vuelve al tab/app (e.g. desde file picker)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                resetTimer();
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
         // Iniciar timer
         resetTimer();
 
@@ -105,6 +113,7 @@ export const useInactivityTimeout = () => {
             activityEvents.forEach(event => {
                 document.removeEventListener(event, resetTimer, true);
             });
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearTimeout(timeoutRef.current);
             clearTimeout(warningRef.current);
             clearInterval(intervalRef.current);

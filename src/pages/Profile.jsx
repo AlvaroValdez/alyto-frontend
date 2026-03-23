@@ -34,12 +34,12 @@ const Profile = () => {
       toast.error('La imagen no debe superar los 5MB');
       return;
     }
-    const formData = new FormData();
-    formData.append('avatar', file);
+    const uploadData = new FormData();
+    uploadData.append('avatar', file);
     setUploading(true);
     const toastId = toast.loading('Subiendo foto de perfil...');
     try {
-      const response = await uploadAvatar(formData);
+      const response = await uploadAvatar(uploadData);
       if (response.ok && response.avatar) {
         updateUserSession({ ...user, avatar: response.avatar });
         toast.success('Foto de perfil actualizada', { id: toastId });

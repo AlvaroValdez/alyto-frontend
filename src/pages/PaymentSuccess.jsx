@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Card, Button, Spinner, Badge } from 'react-bootstrap';
+import { Container, Card, Button, Spinner, Badge, Alert } from 'react-bootstrap';
 import { Link, useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { getTransactions, checkPaymentStatus } from '../services/api';
 import { formatNumberForDisplay, formatRate } from '../utils/formatting';
@@ -186,39 +186,87 @@ const PaymentSuccess = () => {
     return null;
   };
 
-  // ✅ FIX: Función para compartir IMAGEN del comprobante (App Style)
-  const handleShareReceipt = async () => {
-    const cardElement = document.querySelector('.card .card-body');
+  // Construye el texto del mensaje WhatsApp con los datos de la transacción
+  const buildWhatsAppText = () => {
+    if (!transaction) return `Comprobante de transferencia Alyto\nID: ${orderId}`;
+
+    const at = transaction.amountsTracking || {};
+    const rt = transaction.rateTracking || {};
+
+    const originTotal = at.originTotal ?? transaction.amount ?? 0;
+    const originCurrency = at.originCurrency || transaction.currency || '';
+    const destReceive = at.destReceiveAmount ?? rt.destAmount ?? 0;
+    const destCurrency = at.destCurrency || rt.destCurrency || transaction.country || '';
+    const rate = rt.alytoRate
+      ? `1 ${originCurrency} = ${rt.alytoRate} ${destCurrency}`
+      : null;
+
+    const benefName = [
+      transaction.beneficiary_first_name || transaction.withdrawalPayload?.beneficiary_first_name,
+      transaction.beneficiary_last_name || transaction.withdrawalPayload?.beneficiary_last_name
+    ].filter(Boolean).join(' ');
+
+    const lines = [
+      '🏦 *Comprobante de Transferencia Alyto*',
+      '',
+      `💸 Enviado: ${originCurrency} ${Number(originTotal).toLocaleString('es-CL')}`,
+      `✅ Beneficiario recibe: ${destCurrency} ${Number(destReceive).toLocaleString('es-CL')}`,
+      ...(benefName ? [`👤 Beneficiario: ${benefName}`] : []),
+      ...(rate ? [`📊 Tasa: ${rate}`] : []),
+      `📋 ID: ${orderId}`,
+      '',
+      '_Transferencia procesada por Alyto_'
+    ];
+
+    return lines.join('\n');
+  };
+
+  // Compartir por WhatsApp con texto formateado
+  const handleWhatsAppShare = () => {
+    const text = buildWhatsAppText();
+    const encoded = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+  };
+
+  // Compartir imagen nativa (móvil) o descarga (desktop)
+  const handleShareImage = async () => {
+    const cardElement = document.getElementById('receipt-capture-area');
     if (!cardElement) return;
 
     try {
-      console.log('📸 Generando imagen del comprobante...');
+      // Scroll to top so the element is in a predictable position
+      const savedScroll = window.scrollY;
+      window.scrollTo(0, 0);
+      await new Promise(r => requestAnimationFrame(r));
+
       const canvas = await html2canvas(cardElement, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        // Use full document height so tall receipts are never clipped
+        windowWidth: document.documentElement.offsetWidth,
+        windowHeight: document.documentElement.scrollHeight,
+        logging: false,
       });
+
+      window.scrollTo(0, savedScroll);
 
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const file = new File([blob], `comprobante-alyto-${orderId}.png`, { type: 'image/png' });
 
-      // ✅ Check if native share with files is supported (Mobile)
       if (navigator.canShare?.({ files: [file] })) {
         try {
-          await navigator.share({
-            files: [file],
-            title: 'Comprobante Alyto'
-          });
-          console.log('✅ Imagen compartida exitosamente');
+          await navigator.share({ files: [file], title: 'Comprobante Alyto' });
           return;
         } catch (err) {
-          if (err.name === 'AbortError') return; // User cancelled
-          console.warn('Share con archivo falló, descargando...', err);
+          if (err.name === 'AbortError') return;
         }
       }
 
-      // ✅ FALLBACK: Descargar imagen directamente (Desktop/Browsers sin soporte)
-      console.log('📥 Descargando imagen del comprobante...');
+      // Fallback: descargar
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -227,12 +275,8 @@ const PaymentSuccess = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      alert('✅ Imagen descargada. Compártela manualmente por WhatsApp, Email, etc.');
-
     } catch (err) {
       console.error('Error generando imagen:', err);
-      handleCopyLink();
     }
   };
 
@@ -240,7 +284,7 @@ const PaymentSuccess = () => {
     const shareUrl = `${window.location.origin}/payment-success/${orderId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert('✅ Enlace copiado');
+      alert('Enlace copiado');
     } catch (err) {
       console.error('Error copiando enlace:', err);
     }
@@ -311,8 +355,14 @@ const PaymentSuccess = () => {
                 </Alert>
               )}
 
-              {/* Transaction Details Card */}
-              <div className="bg-light p-4 rounded-3 mb-4">
+              {/* Capturable area: logo + receipt card */}
+              <div id="receipt-capture-area" style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '16px' }}>
+                <div className="text-center mb-3">
+                  <img src={logo} alt="Alyto" style={{ height: '70px' }} />
+                </div>
+
+                {/* Transaction Details Card */}
+                <div id="receipt-card-body" className="bg-light p-4 rounded-3 mb-0">
                 {/* Transaction ID */}
                 <div className="mb-3 pb-3 border-bottom">
                   <small className="text-muted d-block mb-1">ID de Transacción</small>
@@ -333,7 +383,7 @@ const PaymentSuccess = () => {
                           style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                         />
                       )}
-                      <span className="fw-bold fs-5 text-dark">{transaction.currency}</span>
+                      <span className="fw-bold fs-5 text-dark" translate="no">{transaction.currency}</span>
                     </div>
                     <span className="fw-bold" style={{ fontSize: '1.5rem', color: '#233E58' }}>
                       ${formatNumberForDisplay(transaction.amount)}
@@ -355,7 +405,7 @@ const PaymentSuccess = () => {
                               style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                             />
                           )}
-                          <span className="fw-bold fs-5 text-dark">
+                          <span className="fw-bold fs-5 text-dark" translate="no">
                             {transaction.rateTracking?.destCurrency || transaction.amountsTracking?.destCurrency || transaction.country}
                           </span>
                         </div>
@@ -377,7 +427,7 @@ const PaymentSuccess = () => {
                     <div className="mb-3 pb-3 border-bottom">
                       <small className="text-muted d-block mb-2">Tasa de cambio</small>
                       <div className="d-flex align-items-center gap-2">
-                        <span className="badge bg-light text-dark border px-3 py-2">
+                        <span className="badge bg-light text-dark border px-3 py-2" translate="no">
                           <i className="bi bi-arrow-left-right me-2"></i>
                           <span className="fw-bold">
                             1 {transaction.currency} = {formatRate(effectiveRate)} {destCurrency}
@@ -542,21 +592,32 @@ const PaymentSuccess = () => {
                     {getStatusBadge(transaction.status)}
                   </div>
                 </div>
-              </div>
+                </div>
+              </div>{/* /receipt-capture-area */}
 
-              {/* ✅ FIX: Botones de Compartir */}
-              <div className="d-flex gap-2 mb-3">
+              {/* Botones de compartir */}
+              <div className="d-flex gap-2 mb-3 flex-wrap">
+                <Button
+                  variant="success"
+                  className="flex-fill fw-bold"
+                  onClick={handleWhatsAppShare}
+                  style={{ backgroundColor: '#25D366', borderColor: '#25D366' }}
+                >
+                  <i className="bi bi-whatsapp me-2"></i>
+                  WhatsApp
+                </Button>
                 <Button
                   variant="outline-primary"
                   className="flex-fill"
-                  onClick={handleShareReceipt}
+                  onClick={handleShareImage}
                 >
-                  <i className="bi bi-share me-2"></i>
-                  Compartir Comprobante
+                  <i className="bi bi-image me-2"></i>
+                  Guardar imagen
                 </Button>
                 <Button
                   variant="outline-secondary"
                   onClick={handleCopyLink}
+                  title="Copiar enlace"
                 >
                   <i className="bi bi-clipboard"></i>
                 </Button>
