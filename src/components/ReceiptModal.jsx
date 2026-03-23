@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import logo from '../assets/images/logo.png';
 import ReceiptContent from './ReceiptContent';
 
@@ -47,6 +47,7 @@ const ReceiptModal = ({ show, onHide, transaction, orderId }) => {
             toast.error('Error al generar imagen', { id: toastId });
         }
     };
+
 
     const handleWhatsAppShare = async () => {
         if (!transaction) return;

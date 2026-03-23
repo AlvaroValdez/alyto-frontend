@@ -61,6 +61,15 @@ const Transactions = () => {
 
   const getFlagUrl = (code) => FLAGS[code?.toUpperCase()] || '';
 
+  // Convierte código de mercado/país a ISO de moneda ("CL" → "CLP", "BO" → "BOB", etc.)
+  const COUNTRY_TO_CURRENCY = {
+    CL: 'CLP', CO: 'COP', AR: 'ARS', MX: 'MXN', BR: 'BRL', PE: 'PEN',
+    BO: 'BOB', VE: 'VES', EC: 'USD', PA: 'USD', GT: 'GTQ', SV: 'USD',
+    DO: 'DOP', CR: 'CRC', PY: 'PYG', UY: 'UYU', US: 'USD', EU: 'EUR',
+    GB: 'GBP', PL: 'PLN', AU: 'AUD', CN: 'CNY', HT: 'HTG'
+  };
+  const toCurrencyCode = (code) => COUNTRY_TO_CURRENCY[code?.toUpperCase()] || code || '';
+
   // Efecto para cargar las transacciones cuando cambian los filtros o la página
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -204,7 +213,7 @@ const Transactions = () => {
                 {/* Recibido */}
                 <td className="text-end">
                   {tx.amountsTracking?.destReceiveAmount ? (
-                    <><strong>{new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0 }).format(tx.amountsTracking.destReceiveAmount)}</strong> <small className="text-muted">{tx.amountsTracking.destCurrency}</small></>
+                    <><strong>{new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0 }).format(tx.amountsTracking.destReceiveAmount)}</strong> <small className="text-muted" translate="no">{toCurrencyCode(tx.amountsTracking.destCurrency)}</small></>
                   ) : (
                     <span className="text-muted">-</span>
                   )}
@@ -340,12 +349,14 @@ const Transactions = () => {
               >
                 <Card.Body className="p-3">
                   {(() => {
-                    // Derive destination currency and amounts
-                    const destCurrency = tx.amountsTracking?.destCurrency ||
-                      (tx.country === 'BO' ? 'BOB' : tx.country === 'PE' ? 'PEN' :
-                        tx.country === 'CO' ? 'COP' : tx.country === 'AR' ? 'ARS' :
-                          tx.country === 'MX' ? 'MXN' : tx.country === 'BR' ? 'BRL' : 'USD');
+                    // Derive origin currency, flag and amount
+                    const originCurrency = tx.amountsTracking?.originCurrency || tx.currency || 'CLP';
+                    const originAmount = tx.amountsTracking?.originTotal ?? tx.amount ?? 0;
+                    // Flag uses first 2 chars of ISO currency code ("BOB" → "BO", "CLP" → "CL")
+                    const originFlagCode = originCurrency.length === 3 ? originCurrency.substring(0, 2) : originCurrency;
 
+                    // Derive destination currency and amounts
+                    const destCurrency = toCurrencyCode(tx.amountsTracking?.destCurrency || tx.country);
                     const destAmount = tx.amountsTracking?.destReceiveAmount || tx.vitaResponse?.estimated_amount;
 
                     // Mask account number (show last 4 chars)
@@ -380,7 +391,7 @@ const Transactions = () => {
                                 style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }}
                               />
                               {destAmount ? (
-                                <span className="fw-bold" style={{ fontSize: '1.15rem', color: '#00A89D' }}>
+                                <span className="fw-bold" style={{ fontSize: '1.15rem', color: '#00A89D' }} translate="no">
                                   {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(destAmount)} {destCurrency}
                                 </span>
                               ) : (
@@ -403,9 +414,13 @@ const Transactions = () => {
                         <div className="mb-3">
                           <div className="text-secondary mb-1" style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Enviaste</div>
                           <div className="d-flex align-items-center gap-2">
-                            <img src={flagCL} alt="CL" style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-                            <span className="fw-bold" style={{ color: '#233E58', fontSize: '1rem' }}>
-                              {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(tx.amount || 0)}
+                            <img
+                              src={getFlagUrl(originFlagCode) || flagCL}
+                              alt={originCurrency}
+                              style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                            <span className="fw-bold" style={{ color: '#233E58', fontSize: '1rem' }} translate="no">
+                              {new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(originAmount)} {originCurrency}
                             </span>
                           </div>
                         </div>

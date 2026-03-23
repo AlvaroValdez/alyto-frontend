@@ -200,10 +200,10 @@ const ManualDeposit = ({ formData, onBack, onFinish }) => {
                                             style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                                         />
                                     )}
-                                    <span className="fw-bold fs-5 text-dark">{transactionData.currency}</span>
+                                    <span className="fw-bold fs-5 text-dark" translate="no">{transactionData.currency}</span>
                                 </div>
-                                <span className="fw-bold" style={{ fontSize: '1.5rem', color: '#233E58' }}>
-                                    $ {formatNumberForDisplay(transactionData.amount)}
+                                <span className="fw-bold" style={{ fontSize: '1.5rem', color: '#233E58' }} translate="no">
+                                    {formatNumberForDisplay(transactionData.amount)} {transactionData.currency}
                                 </span>
                             </div>
                         </div>
@@ -221,8 +221,12 @@ const ManualDeposit = ({ formData, onBack, onFinish }) => {
                                                 style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
                                             />
                                         )}
-                                        <span className="fw-bold fs-5 text-dark">
-                                            {transactionData.amountsTracking?.destCurrency || transactionData.rateTracking?.destCurrency || 'COP'}
+                                        <span className="fw-bold fs-5 text-dark" translate="no">
+                                            {(() => {
+                                                const CTOC = { CL:'CLP',CO:'COP',AR:'ARS',MX:'MXN',BR:'BRL',PE:'PEN',BO:'BOB',VE:'VES',EC:'USD',PA:'USD',GT:'GTQ',SV:'USD',DO:'DOP',CR:'CRC',PY:'PYG',UY:'UYU' };
+                                                const c = transactionData.amountsTracking?.destCurrency || transactionData.rateTracking?.destCurrency || destCountry;
+                                                return CTOC[c?.toUpperCase()] || c || '';
+                                            })()}
                                         </span>
                                     </div>
                                     <span className="fw-bold" style={{ fontSize: '2rem', color: '#28a745' }}>
@@ -249,7 +253,7 @@ const ManualDeposit = ({ formData, onBack, onFinish }) => {
                                 <div className="mb-3 pb-3 border-bottom">
                                     <small className="text-muted d-block mb-2">Tasa de cambio</small>
                                     <div className="d-flex align-items-center gap-2">
-                                        <span className="badge bg-light text-dark border px-3 py-2">
+                                        <span className="badge bg-light text-dark border px-3 py-2" translate="no">
                                             <i className="bi bi-arrow-left-right me-2"></i>
                                             <span className="fw-bold">
                                                 1 {transactionData.currency} = {formatRate(effectiveRate)} {destCurrency}
